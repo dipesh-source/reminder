@@ -1,4 +1,4 @@
-""" Create a table for syatem. """
+"""Create a table for syatem."""
 import sqlite3
 
 # Connect to the database
@@ -22,6 +22,7 @@ with sqlite3.connect("reminders.db") as conn:
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task TEXT NOT NULL,
         day_of_week INTEGER NOT NULL,
+        day TEXT NULL,
         reminder_datetime DATETIME NOT NULL
         );
         """

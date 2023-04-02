@@ -30,3 +30,20 @@ task: the text of the reminder.
 month: the month of the year when the reminder should occur (1-12).
 day_of_month: the day of the month when the reminder should occur (1-31).
 reminder_datetime: the date and time the reminder should occur.
+
+
+
+Important
+----------
+# create connection to database
+        self.conn = sqlite3.connect("reminders.db")
+
+        # create weekly_reminders table if it doesn't exist
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task TEXT NOT NULL,
+            day_of_week INTEGER NOT NULL,
+            reminder_datetime DATETIME NOT NULL
+            );
+            """)

@@ -10,6 +10,11 @@ Pipfile.lock
 # C extensions
 *.so
 
+# my testing .py files
+test.py
+1.py
+
+
 # Distribution / packaging
 .Python
 build/
