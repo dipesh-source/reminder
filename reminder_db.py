@@ -35,7 +35,7 @@ with sqlite3.connect("reminders.db") as conn:
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task TEXT NOT NULL,
         start_date DATE NOT NULL,
-        end_date DATE NOT NULL,
+        end_date DATE NULL,
         reminder_datetime DATETIME NOT NULL
         );
         """
