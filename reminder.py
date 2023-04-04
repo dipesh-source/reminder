@@ -1,6 +1,8 @@
 """Start a business logic."""
 import tkinter as tk
 import sqlite3
+import subprocess
+import threading
 
 from datetime import datetime, time
 from pydub import AudioSegment
@@ -30,7 +32,7 @@ class TimeSelector:
         self.ampm_var.set("AM")
 
         self.hour_options = [str(i).zfill(2) for i in range(1, 13)]
-        self.minute_options = [str(i).zfill(2) for i in range(0, 60, 5)]
+        self.minute_options = [str(i).zfill(2) for i in range(0, 60)]
         self.ampm_options = ["AM", "PM"]
 
         self.hour_dropdown = tk.OptionMenu(master, self.hour_var, *self.hour_options)
@@ -579,6 +581,13 @@ def show_class_messagebox(class_name):
     root.wait_window(root)
 
 
+# Run the reminders_db.py script to create the database table (if necessary)
+subprocess.Popen(["python", "reminders_db.py"])
+
+# Run the reminders.py script to display reminders (in the background)
+subprocess.Popen(["python", "reminders.py"])
+
+
 # Create the root window
 root = tk.Tk()
 
@@ -607,4 +616,50 @@ x_coordinate = int((screen_width / 2) - (450 / 2))
 y_coordinate = int((screen_height / 2) - (400 / 2))
 root.geometry("+{}+{}".format(x_coordinate, y_coordinate))
 
+
+def check_all_reminders():
+    """Start the main logic, which will make us alert when the reminder will occur."""
+    # Check for due reminders every minute
+    sound = AudioSegment.from_file("play1.wav", format="wav")
+    while True:
+        import time
+
+        current_time = datetime.now().strftime("%H:%M") + ":00"
+        conn = sqlite3.connect("reminders.db")
+        c = conn.cursor()
+        c.execute(
+            "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
+            (current_time,),
+        )
+        due_reminders = c.fetchall()
+        print("all data from database ******", due_reminders)
+        for reminder in due_reminders:
+            print("Forloop *************", reminder)
+            reminder_task = reminder[1]
+            reminder_time = reminder[2]
+            print("Reminder Task ###########", reminder_task)
+            print("Reminder Time ###########", reminder_time)
+
+            print("reminder_task", reminder_task)
+            print("reminder_time", reminder_time)
+            print("current_time", current_time)
+            if reminder_time == current_time:
+                message = "Reminder: {}\n\nTime: {}".format(
+                    reminder_task, reminder_time
+                )
+                root = tk.Tk()
+                root.withdraw()  # hide the main window
+                play(sound)
+                messagebox.showinfo("Reminder", message)
+                root.destroy()  # destroy the temporary window
+        c.close()
+        conn.close()
+        time.sleep(60)
+
+
+reminders_thread = threading.Thread(target=check_all_reminders)
+reminders_thread.daemon
+reminders_thread.start()
+
+print("loop is going on")
 root.mainloop()
