@@ -5,7 +5,6 @@ __pycache__/
 *.lock
 Pipfile
 Pipfile.lock
-*.db
 
 # C extensions
 *.so

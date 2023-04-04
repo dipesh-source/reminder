@@ -1,16 +1,20 @@
 """Start a business logic."""
-import tkinter as tk
+import sys
 import sqlite3
-import subprocess
 import threading
+import subprocess
+import tkinter as tk
 
 from datetime import datetime, time
-from pydub import AudioSegment
-from pydub.playback import play
 from tkinter import messagebox
 
 
 conn = sqlite3.connect("reminders.db")
+
+# def connect_to_db():
+#     db_path = os.path.join(os.path.dirname(__file__), 'reminders.db')
+#     conn = sqlite3.connect(db_path)
+#     return conn
 
 
 class TimeSelector:
@@ -72,21 +76,32 @@ class TimeSelector:
             task = self.entry.get()
             print(selected_time, "Daily task #######", task)
             # insert into daily_reminders table
-            conn = sqlite3.connect("reminders.db")  # re-open the connection
-            conn.execute(
-                """
-                INSERT INTO daily_reminders (task, reminder_datetime)
-                VALUES (?, ?)
-            """,
-                (task, selected_time.strftime("%H:%M:%S")),
-            )
+            # conn = connect_to_db()
+            # Use a context manager to handle the connection and cursor objects
+            with sqlite3.connect("reminders.db") as conn:
+                c = conn.cursor()
 
-            # commit changes to the database
-            conn.commit()
-            conn.close()
-            # Load and play a sound file when the button is clicked
-            sound = AudioSegment.from_file("play.wav", format="wav")
-            play(sound)
+                # Create the daily reminders table
+                c.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS daily_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task TEXT NOT NULL,
+                    reminder_datetime DATETIME NOT NULL
+                    );
+                    """
+                )
+
+                c.execute(
+                    """
+                    INSERT INTO daily_reminders (task, reminder_datetime)
+                    VALUES (?, ?)
+                """,
+                    (task, selected_time.strftime("%H:%M:%S")),
+                )
+
+                # commit changes to the database
+                conn.commit()
 
         except ValueError:
             print("Invalid time selected")
@@ -199,23 +214,37 @@ class WeekdaySelector:
             print("Current name of Day in string", day)
 
             task = self.entry.get()
-            conn = sqlite3.connect("reminders.db")  # re-open the connection
-            conn.execute(
-                """
-                INSERT INTO weekly_reminders (task, day_of_week, day, reminder_datetime)
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    task,
-                    selected_weekday,
-                    selected_day,
-                    selected_time.strftime("%H:%M:%S"),
-                ),
-            )
+            # conn = connect_to_db()
+            with sqlite3.connect("reminders.db") as conn:
+                c = conn.cursor()
+                # Create the weekly reminders table
+                c.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS weekly_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task TEXT NOT NULL,
+                    day_of_week INTEGER NOT NULL,
+                    day TEXT NULL,
+                    reminder_datetime DATETIME NOT NULL
+                    );
+                    """
+                )
 
-            # commit changes to the database
-            conn.commit()
-            conn.close()
+                c.execute(
+                    """
+                    INSERT INTO weekly_reminders (task, day_of_week, day, reminder_datetime)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        task,
+                        selected_weekday,
+                        selected_day,
+                        selected_time.strftime("%H:%M:%S"),
+                    ),
+                )
+
+                # commit changes to the database
+                conn.commit()
 
         except ValueError:
             print("Invalid time selected")
@@ -406,22 +435,34 @@ class MonthSelector:
                     text=f"Selected start date: {start_date_string}\nSelected end date: {end_date_string}"
                 )
 
-                # re-open the connection
-                conn = sqlite3.connect("reminders.db")
-                conn.execute(
-                    """
-                INSERT INTO monthly_reminders (task, start_date, end_date, reminder_datetime)
-                VALUES (?, ?, ?, ?)""",
-                    (
-                        task,
-                        start_date,
-                        end_date,
-                        reminder_datetime.strftime("%H:%M:%S"),
-                    ),
-                )
+                with sqlite3.connect("reminders.db") as conn:
+                    c = conn.cursor()
 
-                conn.commit()
-                conn.close()
+                    # Create the monthly reminders table
+                    c.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS monthly_reminders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        task TEXT NOT NULL,
+                        start_date DATE NOT NULL,
+                        end_date DATE NULL,
+                        reminder_datetime DATETIME NOT NULL
+                        );
+                        """
+                    )
+                    c.execute(
+                        """
+                    INSERT INTO monthly_reminders (task, start_date, end_date, reminder_datetime)
+                    VALUES (?, ?, ?, ?)""",
+                        (
+                            task,
+                            start_date,
+                            end_date,
+                            reminder_datetime.strftime("%H:%M:%S"),
+                        ),
+                    )
+
+                    conn.commit()
 
         except ValueError:
             # if master.winfo_exists():
@@ -529,22 +570,33 @@ class YearlySelector:
             selected_time = time(hour=hour, minute=minute)
             task = self.entry.get()
 
-            conn = sqlite3.connect("reminders.db")  # re-open the connection
-            conn.execute(
-                """
-                INSERT INTO yearly_reminders (task, month, day_of_month, reminder_datetime)
-                VALUES (?, ?, ?, ?)
-            """,
-                (task, month, day, selected_time.strftime("%H:%M:%S")),
-            )
+            with sqlite3.connect("reminders.db") as conn:
+                c = conn.cursor()
 
-            # commit changes to the database
-            conn.commit()
-            conn.close()
+                # Create the yearly reminders table
+                c.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS yearly_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task TEXT NOT NULL,
+                    month INTEGER NOT NULL,
+                    day_of_month INTEGER NOT NULL,
+                    reminder_datetime DATETIME NOT NULL
+                    );
+                    """
+                )
 
-            # Load and play a sound file when the button is clicked
-            sound = AudioSegment.from_file("play.wav", format="wav")
-            play(sound)
+                c.execute(
+                    """
+                    INSERT INTO yearly_reminders (task, month, day_of_month, reminder_datetime)
+                    VALUES (?, ?, ?, ?)
+                """,
+                    (task, month, day, selected_time.strftime("%H:%M:%S")),
+                )
+
+                # commit changes to the database
+                conn.commit()
+
         except ValueError:
             # if master.winfo_exists():
             messagebox.showerror(
@@ -581,11 +633,13 @@ def show_class_messagebox(class_name):
     root.wait_window(root)
 
 
+interpreter_path = sys.executable
+
 # Run the reminders_db.py script to create the database table (if necessary)
-subprocess.Popen(["python", "reminders_db.py"])
+subprocess.Popen([interpreter_path, "reminders_db.py"])
 
 # Run the reminders.py script to display reminders (in the background)
-subprocess.Popen(["python", "reminders.py"])
+subprocess.Popen([interpreter_path, "reminders.py"])
 
 
 # Create the root window
@@ -620,12 +674,12 @@ root.geometry("+{}+{}".format(x_coordinate, y_coordinate))
 def check_all_reminders():
     """Start the main logic, which will make us alert when the reminder will occur."""
     # Check for due reminders every minute
-    sound = AudioSegment.from_file("play1.wav", format="wav")
     while True:
         import time
 
         current_time = datetime.now().strftime("%H:%M") + ":00"
         conn = sqlite3.connect("reminders.db")
+        # conn = connect_to_db()
         c = conn.cursor()
         c.execute(
             "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
@@ -649,7 +703,6 @@ def check_all_reminders():
                 )
                 root = tk.Tk()
                 root.withdraw()  # hide the main window
-                play(sound)
                 messagebox.showinfo("Reminder", message)
                 root.destroy()  # destroy the temporary window
         c.close()
