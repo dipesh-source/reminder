@@ -1,4 +1,5 @@
 """Start a business logic."""
+import os
 import sys
 import sqlite3
 import threading
@@ -9,7 +10,13 @@ from datetime import datetime, time
 from tkinter import messagebox
 
 
-conn = sqlite3.connect("reminders.db")
+db_file = "reminders.db"
+
+if not os.path.exists(db_file):
+    # Create a new database file if it doesn't exist
+    conn = sqlite3.connect(db_file)
+    conn.close()
+
 
 # def connect_to_db():
 #     db_path = os.path.join(os.path.dirname(__file__), 'reminders.db')
@@ -71,10 +78,8 @@ class TimeSelector:
             elif self.ampm_var.get() == "AM" and hour == 12:
                 hour = 0
             selected_time = time(hour=hour, minute=minute)
-            print("testing the daily types", type(selected_time))
 
             task = self.entry.get()
-            print(selected_time, "Daily task #######", task)
             # insert into daily_reminders table
             # conn = connect_to_db()
             # Use a context manager to handle the connection and cursor objects
@@ -106,9 +111,8 @@ class TimeSelector:
         except ValueError:
             print("Invalid time selected")
 
-    def daily_close_connection(self):
-        """Close the DB connection."""
-        conn.close()
+        except Exception as e:
+            print("An error occurred:", str(e))
 
 
 class WeekdaySelector:
@@ -204,15 +208,6 @@ class WeekdaySelector:
                 hour = 0
             selected_time = time(hour=hour, minute=minute)
 
-            # Get current date and time
-            now = datetime.now()
-            # Get the day of the week as an integer (Monday is 0 and Sunday is 6)
-            day_of_week = now.weekday()
-            print("Day of week in number", day_of_week)
-            # Print the day of the week
-            day = datetime.now().strftime("%A")
-            print("Current name of Day in string", day)
-
             task = self.entry.get()
             # conn = connect_to_db()
             with sqlite3.connect("reminders.db") as conn:
@@ -249,9 +244,8 @@ class WeekdaySelector:
         except ValueError:
             print("Invalid time selected")
 
-    def weekly_close_connection(self):
-        """Close the DB connection."""
-        conn.close()
+        except Exception as e:
+            print("An error occurred:", str(e))
 
 
 class MonthSelector:
@@ -259,7 +253,6 @@ class MonthSelector:
 
     def __init__(self, master):
         """Start initialization for the monthly task."""
-        print(master)
         self.master = master
         master.title("Monthly Reminder")
         master.geometry("400x300")
@@ -337,15 +330,17 @@ class MonthSelector:
         self.select_end_label.grid(row=2, column=0, padx=(10, 5), sticky="w")
 
         # Create option menus for selecting end day and month
-        self.end_day_var = tk.StringVar(value="1")
+        self.end_day_var = tk.StringVar(value="Select Day")
         self.end_day_dropdown = tk.OptionMenu(
-            master, self.end_day_var, *[str(i) for i in range(1, 32)]
+            master, self.end_day_var, "Select Day", *[str(i) for i in range(1, 32)]
         )
 
-        self.end_month_var = tk.StringVar(value="January")
+        self.end_month_var = tk.StringVar(value="Select Month")
+
         self.end_month_dropdown = tk.OptionMenu(
             master,
             self.end_month_var,
+            "Select Month",
             "January",
             "February",
             "March",
@@ -374,65 +369,113 @@ class MonthSelector:
 
     def get_selected_date(self):
         """Get the selected start and end dates and display them."""
-        start_day = self.start_day_var.get()
-        start_month = self.start_month_var.get()
-
         end_day = self.end_day_var.get()
         end_month = self.end_month_var.get()
+        if end_day != "Select Day" and end_month != "Select Month":
+            try:
 
-        try:
+                hour = int(self.hour_var.get())
+                minute = int(self.minute_var.get())
+                if self.ampm_var.get() == "PM" and hour != 12:
+                    hour += 12
+                elif self.ampm_var.get() == "AM" and hour == 12:
+                    hour = 0
+                reminder_datetime = time(hour=hour, minute=minute)
 
-            hour = int(self.hour_var.get())
-            minute = int(self.minute_var.get())
-            if self.ampm_var.get() == "PM" and hour != 12:
-                hour += 12
-            elif self.ampm_var.get() == "AM" and hour == 12:
-                hour = 0
-            reminder_datetime = time(hour=hour, minute=minute)
-            print("Selected time from the monthly task", reminder_datetime)
+                x_day = int(self.start_day_var.get())
+                x_month = datetime.strptime(self.start_month_var.get(), "%B").month
+                x_year = datetime.now().year
+                start_date = datetime(year=x_year, month=x_month, day=x_day).date()
 
-            # x_day = int(self.start_day_var.get())
-            # x_month = datetime.strptime(self.start_month_var.get(), "%B").month
-            # x_year = datetime.now().year
-            # x_selected_date = datetime(year=x_year, month=x_month, day=x_day).date()
-            # print("selected_date **************", x_selected_date)
+                y_day = int(self.end_day_var.get())
+                y_month = datetime.strptime(self.end_month_var.get(), "%B").month
+                y_year = datetime.now().year
+                end_date = datetime(year=y_year, month=y_month, day=y_day).date()
 
-            # y_day = int(self.end_day_var.get())
-            # y_month = datetime.strptime(self.end_month_var.get(), "%B").month
-            # y_year = datetime.now().year
-            # y_selected_date = datetime(year=y_year, month=y_month, day=y_day).date()
-            # print("selected_date **************", y_selected_date)
+                if end_date < start_date:
+                    messagebox.showerror(
+                        "Invalid date range",
+                        "End date cannot be earlier than start date.",
+                    )
+                else:
+                    start_date_string = start_date.strftime("%B %d, %Y")
+                    end_date_string = end_date.strftime("%B %d, %Y")
 
-            start_date = datetime.strptime(
-                f"{start_month} {start_day} 2023", "%B %d %Y"
-            ).date()
-            end_date = datetime.strptime(
-                f"{end_month} {end_day} 2023", "%B %d %Y"
-            ).date()
-            print("Chat GPT start_date ********", start_date)
-            print("Chat GPT end_date ********", end_date)
+                    # need to save in db
+                    start_date = datetime(year=x_year, month=x_month, day=x_day).date()
 
-            if end_date < start_date:
+                    end_date = datetime(year=y_year, month=y_month, day=y_day).date()
+
+                    task = self.entry.get()
+
+                    self.result_label.config(
+                        text=f"Selected start date: {start_date_string}\nSelected end date: {end_date_string}"
+                    )
+
+                    with sqlite3.connect("reminders.db") as conn:
+                        c = conn.cursor()
+
+                        # Create the monthly reminders table
+                        c.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS monthly_reminders (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            task TEXT NOT NULL,
+                            start_date DATE NOT NULL,
+                            end_date DATE NULL,
+                            reminder_datetime DATETIME NOT NULL
+                            );
+                            """
+                        )
+                        c.execute(
+                            """
+                        INSERT INTO monthly_reminders (task, start_date, end_date, reminder_datetime)
+                        VALUES (?, ?, ?, ?)""",
+                            (
+                                task,
+                                start_date,
+                                end_date,
+                                reminder_datetime.strftime("%H:%M:%S"),
+                            ),
+                        )
+
+                        conn.commit()
+
+            except ValueError:
+                # if master.winfo_exists():
                 messagebox.showerror(
-                    "Invalid date range",
-                    "End date cannot be earlier than start date.",
+                    "Invalid date",
+                    "Please select a valid date for start and end dates.",
                 )
-            else:
+
+            except Exception as e:
+                print("An error occurred:", str(e))
+        else:
+            try:
+
+                hour = int(self.hour_var.get())
+                minute = int(self.minute_var.get())
+                if self.ampm_var.get() == "PM" and hour != 12:
+                    hour += 12
+                elif self.ampm_var.get() == "AM" and hour == 12:
+                    hour = 0
+                reminder_datetime = time(hour=hour, minute=minute)
+
+                x_day = int(self.start_day_var.get())
+                x_month = datetime.strptime(self.start_month_var.get(), "%B").month
+                x_year = datetime.now().year
+                start_date = datetime(year=x_year, month=x_month, day=x_day).date()
+
                 start_date_string = start_date.strftime("%B %d, %Y")
-                end_date_string = end_date.strftime("%B %d, %Y")
 
                 # need to save in db
-                start_date = datetime.strptime(
-                    f"{start_month} {start_day} 2023", "%B %d %Y"
-                ).date()
-                end_date = datetime.strptime(
-                    f"{end_month} {end_day} 2023", "%B %d %Y"
-                ).date()
+                start_date = datetime(year=x_year, month=x_month, day=x_day).date()
 
                 task = self.entry.get()
+                end_date = ""
 
                 self.result_label.config(
-                    text=f"Selected start date: {start_date_string}\nSelected end date: {end_date_string}"
+                    text=f"Selected start date: {start_date_string}\n"
                 )
 
                 with sqlite3.connect("reminders.db") as conn:
@@ -464,11 +507,15 @@ class MonthSelector:
 
                     conn.commit()
 
-        except ValueError:
-            # if master.winfo_exists():
-            messagebox.showerror(
-                "Invalid date", "Please select a valid date for start and end dates."
-            )
+            except ValueError:
+                # if master.winfo_exists():
+                messagebox.showerror(
+                    "Invalid date",
+                    "Please select a valid date for start date only.",
+                )
+
+            except Exception as e:
+                print("An error occurred:", str(e))
 
     def monthly_close_connection(self):
         """Close the DB connection."""
@@ -603,14 +650,16 @@ class YearlySelector:
                 "Invalid date", "Please select a valid date for yearly reminder."
             )
 
+        except Exception as e:
+            print("An error occurred:", str(e))
+
 
 def show_class_messagebox(class_name):
     """While clicking on option menu popup will appear."""
     # conn = sqlite3.connect("reminders.db")
     if class_name == "Daily":
         root = tk.Toplevel()
-        daily_selector = TimeSelector(root)
-        daily_selector.daily_close_connection()
+        TimeSelector(root)
 
         # screen_width = root.winfo_screenwidth()
         # screen_height = root.winfo_screenheight()
@@ -619,13 +668,11 @@ def show_class_messagebox(class_name):
 
     elif class_name == "Weekly":
         root = tk.Toplevel()
-        week_selector = WeekdaySelector(root)
-        week_selector.weekly_close_connection()
+        WeekdaySelector(root)
 
     elif class_name == "Monthly":
         root = tk.Toplevel()
-        monthly_selector = MonthSelector(root)
-        monthly_selector.monthly_close_connection()
+        MonthSelector(root)
 
     elif class_name == "Yearly":
         root = tk.Toplevel()
@@ -635,84 +682,210 @@ def show_class_messagebox(class_name):
 
 interpreter_path = sys.executable
 
-# Run the reminders_db.py script to create the database table (if necessary)
-subprocess.Popen([interpreter_path, "reminders_db.py"])
-
 # Run the reminders.py script to display reminders (in the background)
 subprocess.Popen([interpreter_path, "reminders.py"])
 
 
-# Create the root window
-root = tk.Tk()
-
-# Set up option menu
-options = ["Daily", "Weekly", "Monthly", "Yearly"]
-selected_option = tk.StringVar(root)
-selected_option.set(options[0])
-option_menu = tk.OptionMenu(root, selected_option, *options)
-option_menu.grid(row=10, column=0, padx=80, pady=(0, 20), sticky="ew")
-
-# Set up button
-button = tk.Button(
-    root, text="Select", command=lambda: show_class_messagebox(selected_option.get())
-)
-button.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="e")
-
-# Set up window properties
-root.title("Reminder Application")
-root.geometry("450x400")
-root.resizable(False, False)
-
-# Center the window on the screen
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-x_coordinate = int((screen_width / 2) - (450 / 2))
-y_coordinate = int((screen_height / 2) - (400 / 2))
-root.geometry("+{}+{}".format(x_coordinate, y_coordinate))
-
-
-def check_all_reminders():
+def check_daily_reminders():
     """Start the main logic, which will make us alert when the reminder will occur."""
     # Check for due reminders every minute
     while True:
         import time
 
         current_time = datetime.now().strftime("%H:%M") + ":00"
-        conn = sqlite3.connect("reminders.db")
-        # conn = connect_to_db()
-        c = conn.cursor()
-        c.execute(
-            "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
-            (current_time,),
-        )
-        due_reminders = c.fetchall()
-        print("all data from database ******", due_reminders)
-        for reminder in due_reminders:
-            print("Forloop *************", reminder)
-            reminder_task = reminder[1]
-            reminder_time = reminder[2]
-            print("Reminder Task ###########", reminder_task)
-            print("Reminder Time ###########", reminder_time)
+        try:
+            conn = sqlite3.connect("reminders.db")
+            # conn = connect_to_db()
+            c = conn.cursor()
+            c.execute(
+                "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
+                (current_time,),
+            )
+            due_reminders = c.fetchall()
+            for reminder in due_reminders:
+                reminder_task = reminder[1]
+                reminder_time = reminder[2]
+                if reminder_time == current_time:
+                    message = "Reminder: {}\n\nTime: {}".format(
+                        reminder_task, reminder_time
+                    )
+                    root = tk.Tk()
+                    root.withdraw()  # hide the main window
+                    messagebox.showinfo("Reminder", message)
+                    root.destroy()  # destroy the temporary window
+            c.close()
+            conn.close()
+        except sqlite3.OperationalError as e:
+            print("Table does not exist:", e)
 
-            print("reminder_task", reminder_task)
-            print("reminder_time", reminder_time)
-            print("current_time", current_time)
-            if reminder_time == current_time:
-                message = "Reminder: {}\n\nTime: {}".format(
-                    reminder_task, reminder_time
-                )
-                root = tk.Tk()
-                root.withdraw()  # hide the main window
-                messagebox.showinfo("Reminder", message)
-                root.destroy()  # destroy the temporary window
-        c.close()
-        conn.close()
         time.sleep(60)
 
 
-reminders_thread = threading.Thread(target=check_all_reminders)
-reminders_thread.daemon
-reminders_thread.start()
+def check_weekly_reminders():
+    """Start the main logic, which will make us alert when the reminder will occur."""
+    # Check for due reminders every minute
+    while True:
+        import time
 
-print("loop is going on")
-root.mainloop()
+        current_time = datetime.now().strftime("%H:%M") + ":00"
+        try:
+            conn = sqlite3.connect("reminders.db")
+            # conn = connect_to_db()
+            c = conn.cursor()
+
+            # Execute a SELECT statement to retrieve specific columns from the table
+            c.execute(
+                "SELECT day_of_week, day, reminder_datetime FROM weekly_reminders"
+            )
+            data = c.fetchall()
+            # Get current date and time
+            now = datetime.now()
+
+            # Get the day of the week as an integer (Monday is 0 and Sunday is 6)
+            day_of_week = now.weekday()
+            # Print the day of the week
+            day = datetime.now().strftime("%A")
+
+            # Check if there is a match in the retrieved data
+            for reminder in data:
+                if (
+                    reminder[0] == day_of_week
+                    and reminder[1] == day  # noqa: W503
+                    and reminder[2] == current_time  # noqa: W503
+                ):
+                    # Display a pop-up message using tkinter
+                    message = "Reminder: {}\n\nTime: {}".format(
+                        reminder[1], reminder[2]
+                    )
+                    root = tk.Toplevel()
+                    root.withdraw()  # hide the main window
+                    messagebox.showinfo("Reminder", message)
+                    root.destroy()  # destroy the temporary window
+
+            c.close()
+            conn.close()
+        except sqlite3.OperationalError as e:
+            print("Table does not exist:", e)
+
+        time.sleep(60)
+
+
+def check_monthly_reminders():
+    """Start the main logic, which will make us alert when the reminder will occur."""
+    # Check for due reminders every minute
+    while True:
+        import time
+
+        current_time = datetime.now().strftime("%H:%M") + ":00"
+        try:
+            conn = sqlite3.connect("reminders.db")
+            # conn = connect_to_db()
+            c = conn.cursor()
+            c.execute(
+                "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
+                (current_time,),
+            )
+            due_reminders = c.fetchall()
+            for reminder in due_reminders:
+                reminder_task = reminder[1]
+                reminder_time = reminder[2]
+                if reminder_time == current_time:
+                    message = "Reminder: {}\n\nTime: {}".format(
+                        reminder_task, reminder_time
+                    )
+                    root = tk.Toplevel()
+                    root.withdraw()  # hide the main window
+                    messagebox.showinfo("Reminder", message)
+                    root.destroy()  # destroy the temporary window
+            c.close()
+            conn.close()
+        except sqlite3.OperationalError as e:
+            print("Table does not exist:", e)
+
+        time.sleep(60)
+
+
+def check_yearly_reminder():
+    """Start the yearly reminder for once in a year."""
+    while True:
+        import time
+
+        current_time = datetime.now().strftime("%H:%M") + ":00"
+        try:
+            # create a connection to the database
+            conn = sqlite3.connect("reminders.db")
+
+            # get the current date
+            now = datetime.now()
+
+            # select all reminders from the yearly_reminders table
+            c = conn.cursor()
+            c.execute("SELECT * FROM yearly_reminders")
+            reminders = c.fetchall()
+
+            # loop through the reminders and compare with the current date
+            for reminder in reminders:
+                month = reminder[2]
+                day = reminder[3]
+                occur = reminder[4]
+
+                # check if the month and day match the current date
+                if month == now.month and day == now.day and current_time == occur:
+                    # display a reminder message box
+                    message = "Reminder: {}\n\nTime: {}".format(
+                        reminder[1],
+                        occur,
+                    )
+
+                    root = tk.Tk()
+                    root.withdraw()  # hide the main window
+                    messagebox.showinfo("Yearly Reminder", message)
+                    root.destroy()  # destroy the temporary window
+
+            c.close()
+            conn.close()
+        except sqlite3.OperationalError as e:
+            print("Table does not exist:", e)
+
+        time.sleep(60)
+
+
+if __name__ == "__main__":
+    # Create the root window
+    root = tk.Tk()
+
+    # Set up option menu
+    options = ["Daily", "Weekly", "Monthly", "Yearly"]
+    selected_option = tk.StringVar(root)
+    selected_option.set(options[0])
+    option_menu = tk.OptionMenu(root, selected_option, *options)
+    option_menu.grid(row=10, column=0, padx=80, pady=(0, 20), sticky="ew")
+
+    # Set up button
+    button = tk.Button(
+        root,
+        text="Select",
+        command=lambda: show_class_messagebox(selected_option.get()),
+    )
+    button.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="e")
+
+    # Set up window properties
+    root.title("Reminder Application")
+    root.geometry("450x400")
+    root.resizable(False, False)
+
+    # Center the window on the screen
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x_coordinate = int((screen_width / 2) - (450 / 2))
+    y_coordinate = int((screen_height / 2) - (400 / 2))
+    root.geometry("+{}+{}".format(x_coordinate, y_coordinate))
+
+    daily_thread = threading.Thread(target=check_daily_reminders)
+    weekly_thread = threading.Thread(target=check_weekly_reminders)
+    yearly_thread = threading.Thread(target=check_yearly_reminder)
+    daily_thread.start()
+    weekly_thread.start()
+    yearly_thread.start()
+
+    root.mainloop()
