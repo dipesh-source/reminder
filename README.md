@@ -33,17 +33,7 @@ reminder_datetime: the date and time the reminder should occur.
 
 
 
-Important
-----------
-# create connection to database
-        self.conn = sqlite3.connect("reminders.db")
-
-        # create weekly_reminders table if it doesn't exist
-        self.conn.execute("""
-            CREATE TABLE IF NOT EXISTS weekly_reminders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task TEXT NOT NULL,
-            day_of_week INTEGER NOT NULL,
-            reminder_datetime DATETIME NOT NULL
-            );
-            """)
+have to default allow :00 second and convert any second in to :00 in a Daily reminder update
+and add a 0 before a hour if user not add like 02 hour in update
+Handle SQLite Operation Error to table does not exist while Get data to display
+when upload a CSV file before exist a table so getting error(no such table: daily_reminders)fix: create a connection to generate a .db file

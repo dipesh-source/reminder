@@ -1,13 +1,13 @@
 """Start a business logic."""
+import re
 import os
-import sys
+import csv
 import sqlite3
 import threading
-import subprocess
 import tkinter as tk
 
 from datetime import datetime, time
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 
 db_file = "reminders.db"
@@ -16,12 +16,6 @@ if not os.path.exists(db_file):
     # Create a new database file if it doesn't exist
     conn = sqlite3.connect(db_file)
     conn.close()
-
-
-# def connect_to_db():
-#     db_path = os.path.join(os.path.dirname(__file__), 'reminders.db')
-#     conn = sqlite3.connect(db_path)
-#     return conn
 
 
 class TimeSelector:
@@ -67,6 +61,70 @@ class TimeSelector:
             master, text="Schedule", command=self.daily_submit
         )
         self.submit_button.grid(row=1, column=1, pady=(10, 0))
+
+        self.submit_button = tk.Button(
+            master, text="Import CSV", command=self.daily_csv
+        )
+        self.submit_button.grid(row=4, column=2, pady=(10, 0))
+
+    def daily_csv(self):
+        """Upload a csv file for a daily task."""
+        # Open file dialog to select CSV file
+        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+        if not file_path:
+            return
+
+        # Read data from CSV file
+        with open(file_path, "r") as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header row
+            rows = [row for row in reader]
+
+        # Validate data
+        errors = []
+        for row in rows:
+            if len(row) != 2:
+                errors.append(f"Invalid row: {row}")
+                continue
+
+            task, reminder_datetime_str = row
+            if not task:
+                errors.append(f"Task missing: {row}")
+                continue
+
+            try:
+                reminder_time = datetime.strptime(reminder_datetime_str, "%H:%M:%S")
+                reminder_datetime = (
+                    datetime.now()
+                    .replace(
+                        hour=reminder_time.hour,
+                        minute=reminder_time.minute,
+                        second=0,
+                        microsecond=0,
+                    )
+                    .time()
+                )
+                reminder_datetime_str = reminder_datetime.strftime("%H:%M:%S")
+            except ValueError:
+                errors.append(f"Invalid datetime format: {row}")
+                continue
+
+            # Insert data into database
+            with sqlite3.connect("reminders.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO daily_reminders (task, reminder_datetime)
+                    VALUES (?, ?)
+                    """,
+                    (task, reminder_datetime_str),
+                )
+
+        if errors:
+            messagebox.showerror("CSV Import Error", "\n".join(errors))
+        else:
+            messagebox.showinfo("CSV Import", "CSV import successful.")
+        conn.commit()
 
     def daily_submit(self):
         """Create a submit btn."""
@@ -373,7 +431,6 @@ class MonthSelector:
         end_month = self.end_month_var.get()
         if end_day != "Select Day" and end_month != "Select Month":
             try:
-
                 hour = int(self.hour_var.get())
                 minute = int(self.minute_var.get())
                 if self.ampm_var.get() == "PM" and hour != 12:
@@ -452,7 +509,6 @@ class MonthSelector:
                 print("An error occurred:", str(e))
         else:
             try:
-
                 hour = int(self.hour_var.get())
                 minute = int(self.minute_var.get())
                 if self.ampm_var.get() == "PM" and hour != 12:
@@ -659,31 +715,63 @@ def show_class_messagebox(class_name):
     # conn = sqlite3.connect("reminders.db")
     if class_name == "Daily":
         root = tk.Toplevel()
-        TimeSelector(root)
 
-        # screen_width = root.winfo_screenwidth()
-        # screen_height = root.winfo_screenheight()
-        # root.geometry(f"300x200+{screen_width//2-150}+{screen_height//2-100}")
-        # root.protocol("WM_DELETE_WINDOW", daily_selector.daily_close_connection) # close connection when window is closed
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        popup_width = 400
+        popup_height = 300
+        x_position = (screen_width - popup_width) // 2
+        y_position = (screen_height - popup_height) // 2
+        root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
+        TimeSelector(root)
 
     elif class_name == "Weekly":
         root = tk.Toplevel()
+
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        popup_width = 400
+        popup_height = 300
+        x_position = (screen_width - popup_width) // 2
+        y_position = (screen_height - popup_height) // 2
+        root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
         WeekdaySelector(root)
 
     elif class_name == "Monthly":
         root = tk.Toplevel()
+
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        popup_width = 400
+        popup_height = 300
+        x_position = (screen_width - popup_width) // 2
+        y_position = (screen_height - popup_height) // 2
+        root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
         MonthSelector(root)
 
     elif class_name == "Yearly":
         root = tk.Toplevel()
+
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        popup_width = 450
+        popup_height = 300
+        x_position = (screen_width - popup_width) // 2
+        y_position = (screen_height - popup_height) // 2
+        root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
         YearlySelector(root)
+
     root.wait_window(root)
 
 
-interpreter_path = sys.executable
+# interpreter_path = sys.executable
 
-# Run the reminders.py script to display reminders (in the background)
-subprocess.Popen([interpreter_path, "reminders.py"])
+# # Run the reminders.py script to display reminders (in the background)
+# subprocess.Popen([interpreter_path, "reminders.py"])
 
 
 def check_daily_reminders():
@@ -850,6 +938,170 @@ def check_yearly_reminder():
         time.sleep(60)
 
 
+def set_popup_geometry(root):
+    """Set tha common function for a popup."""
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    popup_width = 600
+    popup_height = 400
+    x_position = (screen_width - popup_width) // 2
+    y_position = (screen_height - popup_height) // 2
+    root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
+
+def show_daily_window():
+    """Display a daily data on a window."""
+    daily_root = tk.Toplevel()
+    daily_root.title("Daily Task Window")
+    set_popup_geometry(daily_root)
+
+    from tkinter import ttk
+
+    # Create treeview
+    tree = ttk.Treeview(
+        daily_root, columns=("id", "task", "reminder_datetime"), show="headings"
+    )
+    tree.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+
+    # Define column headings
+    tree.heading("id", text="ID")
+    tree.heading("task", text="Task")
+    tree.heading("reminder_datetime", text="Reminder Date Time")
+
+    # Fetch data from daily_reminders table
+    conn = sqlite3.connect("reminders.db")
+    c = conn.cursor()
+    c.execute("SELECT id, task, reminder_datetime FROM daily_reminders")
+    rows = c.fetchall()
+
+    # Insert data into treeview
+    for row in rows:
+        tree.insert("", tk.END, values=row)
+        tree.selection()
+
+    # Define update function
+    def update_selected():
+        """Update a selected daily data."""
+        try:
+            selected_row_id = tree.selection()[0]
+        except IndexError:
+            messagebox.showwarning("Error", "Please select a row to update.")
+            return
+
+        selected_row = tree.item(selected_row_id)
+        current_values = selected_row["values"]
+
+        # Create popup window for updating task and time
+        update_popup = tk.Toplevel()
+        update_popup.title("Update Task")
+        update_popup.geometry("300x200")
+
+        # Task field
+        tk.Label(update_popup, text="Task:").grid(row=0, column=0, padx=10, pady=10)
+        task_entry = tk.Entry(update_popup)
+        task_entry.insert(tk.END, current_values[1])
+        task_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        # Time field
+        tk.Label(update_popup, text="Time (HH:MM):").grid(
+            row=1, column=0, padx=10, pady=10
+        )
+        time_entry = tk.Entry(update_popup)
+        time_entry.insert(tk.END, current_values[2])
+        time_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        # Save button
+        def save_changes():
+            """Save a updated daily data to db."""
+            # Validate time format
+            try:
+                datetime.strptime(time_entry.get(), "%H:%M:%S")
+            except ValueError:
+                messagebox.showwarning("Error", "Please enter a valid time (HH:MM).")
+                return
+
+            # Update record in database
+            new_values = (task_entry.get(), time_entry.get(), current_values[0])
+            c.execute(
+                "UPDATE daily_reminders SET task = ?, reminder_datetime = ? WHERE id = ?",
+                new_values,
+            )
+            conn.commit()
+
+            # Update treeview
+            tree.item(
+                selected_row_id,
+                values=(current_values[0], task_entry.get(), time_entry.get()),
+            )
+            update_popup.destroy()
+
+        tk.Button(update_popup, text="Save", command=save_changes).grid(
+            row=2, column=0, columnspan=2, padx=10, pady=10
+        )
+
+    # Update button
+    tk.Button(daily_root, text="Update", command=update_selected).grid(
+        row=1, column=0, padx=10, pady=10
+    )
+
+    def delete_selected():
+        """Delete a selected data in a db."""
+        selected_row_id = tree.selection()
+        if not selected_row_id:
+            messagebox.showerror("Error", "No row selected")
+            return
+
+        # Confirm deletion
+        confirmation = messagebox.askyesno(
+            "Confirmation",
+            "Are you sure you want to delete the selected row?",
+            icon="question",
+        )
+        if not confirmation:
+            return
+
+        selected_row_id = selected_row_id[0]
+        tree.delete(selected_row_id)
+
+        # Extract integer id from selected row id
+        id_match = re.search(r"\d+", selected_row_id)
+        if not id_match:
+            messagebox.showerror("Error", "Invalid row id")
+            return
+        row_id = id_match.group()
+
+        # Delete the row from the database
+        conn = sqlite3.connect("reminders.db")
+        c = conn.cursor()
+        c.execute("DELETE FROM daily_reminders WHERE id=?", (row_id,))
+        conn.commit()
+        conn.close()
+
+    delete_button = ttk.Button(daily_root, text="Delete", command=delete_selected)
+    delete_button.grid(row=3, column=0, pady=10)
+
+
+def show_weekly_window():
+    """Set weekly data to display on a window."""
+    weekly_root = tk.Toplevel()
+    weekly_root.title("Weekly Task Window")
+    set_popup_geometry(weekly_root)
+
+
+def show_monthly_window():
+    """Show a monthly data."""
+    monthly_root = tk.Toplevel()
+    monthly_root.title("Monthly Task Window")
+    set_popup_geometry(monthly_root)
+
+
+def show_yearly_window():
+    """Set yearly data to display on a window."""
+    yearly_root = tk.Toplevel()
+    yearly_root.title("Yearly Task Window")
+    set_popup_geometry(yearly_root)
+
+
 if __name__ == "__main__":
     # Create the root window
     root = tk.Tk()
@@ -868,6 +1120,25 @@ if __name__ == "__main__":
         command=lambda: show_class_messagebox(selected_option.get()),
     )
     button.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="e")
+
+    # Create an option menu with task options
+    task_options = ["Daily Task", "Weekly Task", "Monthly Task", "Yearly Task"]
+    selected_task = tk.StringVar(value=task_options[0])
+    option_menu = tk.OptionMenu(root, selected_task, *task_options)
+    option_menu.grid()
+
+    # Create a button to open the selected task window
+    open_task_button = tk.Button(
+        root,
+        text="Open Task",
+        command=lambda: {
+            "Daily Task": show_daily_window,
+            "Weekly Task": show_weekly_window,
+            "Monthly Task": show_monthly_window,
+            "Yearly Task": show_yearly_window,
+        }[selected_task.get()](),
+    )
+    open_task_button.grid()
 
     # Set up window properties
     root.title("Reminder Application")
