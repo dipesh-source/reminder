@@ -1087,6 +1087,79 @@ def show_weekly_window():
     weekly_root.title("Weekly Task Window")
     set_popup_geometry(weekly_root)
 
+    # Define a function to delete the selected item from the table
+    def delete_selected():
+        # Get the selected item from the table
+        selected_item = weekly_table.focus()
+        # If an item is selected, delete it from the table and the database
+        if selected_item:
+            task_id = weekly_table.item(selected_item, "values")[0]
+            confirmation = messagebox.askyesno(
+                "Confirm Delete",
+                "Are you sure you want to delete the selected item?",
+                parent=weekly_root,
+            )
+            if confirmation:
+                conn.execute("DELETE FROM weekly_reminders WHERE id = ?", (task_id,))
+                conn.commit()
+                weekly_table.delete(selected_item)
+        else:
+            messagebox.showwarning(
+                "No item selected",
+                "Please select an item to delete.",
+                parent=weekly_root,
+            )
+
+    from tkinter import ttk
+
+    # Create a frame to hold the table and the delete button
+    table_frame = ttk.Frame(weekly_root)
+    table_frame.pack(fill=tk.BOTH, expand=1, padx=10, pady=10)
+
+    # Create a treeview to display the weekly reminders
+    weekly_table = ttk.Treeview(
+        table_frame, columns=("Id", "Task", "Day of Week", "Day", "Reminder Time")
+    )
+    weekly_table.heading("Id", text="Id")
+    weekly_table.heading("Task", text="Task")
+    weekly_table.heading("Day of Week", text="Day of Week")
+    weekly_table.heading("Day", text="Day")
+    weekly_table.heading("Reminder Time", text="Reminder Time")
+    weekly_table.pack(fill=tk.BOTH, expand=1)
+
+    # Fetch data from the database and add it to the table
+    conn = sqlite3.connect("reminders.db")
+    c = conn.cursor()
+    cursor = c.execute(
+        "SELECT id, task, day_of_week, day, reminder_datetime FROM weekly_reminders"
+    )
+    for row in cursor:
+        weekly_table.insert("", "end", values=row)
+
+    # Create a button to delete the selected item from the table
+    delete_button = ttk.Button(table_frame, text="Delete", command=delete_selected)
+    delete_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+    # Set the minimum size of the columns to fit the data
+    for column in weekly_table["columns"]:
+        weekly_table.column(column, width=100)
+        weekly_table.heading(column, text=column)
+        weekly_table.column(column, anchor=tk.CENTER)
+
+        # Set the width of the Task column to be wider
+        if column == "Task":
+            weekly_table.column(column, width=300)
+
+    # Configure the scrollbar to work with the table
+    scroll_bar = ttk.Scrollbar(
+        table_frame, orient="vertical", command=weekly_table.yview
+    )
+    scroll_bar.pack(side=tk.RIGHT, fill=tk.Y)
+    weekly_table.configure(yscrollcommand=scroll_bar.set)
+
+    # Set the focus on the table
+    weekly_table.focus()
+
 
 def show_monthly_window():
     """Show a monthly data."""
