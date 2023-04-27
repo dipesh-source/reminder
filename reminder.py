@@ -18,6 +18,68 @@ if not os.path.exists(db_file):
     conn.close()
 
 
+class OnceSelector:
+    """Once selector."""
+
+    def __init__(self, master):
+        """Set the initialization for data."""
+        self.master = master
+
+        self.hour_var = tk.StringVar()
+        self.minute_var = tk.StringVar()
+        self.ampm_var = tk.StringVar()
+
+        self.lable = tk.Label(text="Daily Reminder")
+        self.lable.grid(row=4, column=0)
+
+        self.hour_var.set("12")
+        self.minute_var.set("00")
+        self.ampm_var.set("AM")
+
+        self.hour_options = [str(i).zfill(2) for i in range(1, 13)]
+        self.minute_options = [str(i).zfill(2) for i in range(0, 60)]
+        self.ampm_options = ["AM", "PM"]
+
+        self.hour_dropdown = tk.OptionMenu(master, self.hour_var, *self.hour_options)
+        self.minute_dropdown = tk.OptionMenu(
+            master, self.minute_var, *self.minute_options
+        )
+        self.ampm_dropdown = tk.OptionMenu(master, self.ampm_var, *self.ampm_options)
+
+        self.hour_dropdown.grid(row=0, column=1, padx=(10, 0))
+        self.minute_dropdown.grid(row=0, column=2, padx=(5, 0))
+        self.ampm_dropdown.grid(row=0, column=3, padx=(5, 10))
+
+        # Create a label and input widget
+        self.label = tk.Label(master, text="Enter your name:")
+        self.label.grid(row=1, column=0, padx=(10, 0), pady=(10, 0))
+
+        self.entry = tk.Entry(master)
+        self.entry.grid()
+
+        self.submit_button = tk.Button(
+            master, text="Schedule", command=self.once_submit
+        )
+        self.submit_button.grid(row=1, column=1, pady=(10, 0))
+
+        self.submit_button.grid(row=4, column=2, pady=(10, 0))
+
+    def once_submit(self):
+        """Define a once submit button."""
+        try:
+            hour = int(self.hour_var.get())
+            minute = int(self.minute_var.get())
+            if self.ampm_var.get() == "PM" and hour != 12:
+                hour += 12
+            elif self.ampm_var.get() == "AM" and hour == 12:
+                hour = 0
+            selected_time = time(hour=hour, minute=minute)
+            task = self.entry.get()
+            print(selected_time, task)
+        except ValueError:
+            print("Invalid time selected")
+
+
 class TimeSelector:
     """Daily time selector."""
 
@@ -713,6 +775,19 @@ class YearlySelector:
 def show_class_messagebox(class_name):
     """While clicking on option menu popup will appear."""
     # conn = sqlite3.connect("reminders.db")
+    if class_name == "Once":
+        root = tk.Toplevel()
+
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        popup_width = 400
+        popup_height = 300
+        x_position = (screen_width - popup_width) // 2
+        y_position = (screen_height - popup_height) // 2
+        root.geometry(f"{popup_width}x{popup_height}+{x_position}+{y_position}")
+
+        OnceSelector(root)
+
     if class_name == "Daily":
         root = tk.Toplevel()
 
@@ -1110,6 +1185,115 @@ def show_weekly_window():
                 parent=weekly_root,
             )
 
+    def weekly_update_selected():
+        # get the selected item from the table
+        selected_item = weekly_table.focus()
+        # if an item is selected, show the update form
+        if selected_item:
+            # get the values from the selected item
+            item_values = weekly_table.item(selected_item, "values")
+            task_id = item_values[0]
+            task = item_values[1]
+            day_of_week = item_values[2]
+            day = item_values[3]
+            reminder_datetime = item_values[4]
+
+            # create the update form
+            update_form = tk.Toplevel(root)
+            update_form.title("Update Reminder")
+            update_form.geometry("400x200")
+
+            # create the labels and entry fields
+            ttk.Label(update_form, text="Task: ").grid(
+                row=0, column=0, padx=10, pady=10
+            )
+            task_entry = ttk.Entry(update_form, width=30)
+            task_entry.grid(row=0, column=1, padx=10, pady=10)
+            task_entry.insert(0, task)
+
+            ttk.Label(update_form, text="Day of Week: ").grid(
+                row=1, column=0, padx=10, pady=10
+            )
+            day_of_week_entry = ttk.Entry(update_form, width=30)
+            day_of_week_entry.grid(row=1, column=1, padx=10, pady=10)
+            day_of_week_entry.insert(0, day_of_week)
+
+            ttk.Label(update_form, text="Day: ").grid(row=2, column=0, padx=10, pady=10)
+            day_entry = ttk.Entry(update_form, width=30)
+            day_entry.grid(row=2, column=1, padx=10, pady=10)
+            day_entry.insert(0, day)
+
+            ttk.Label(update_form, text="Reminder Datetime: ").grid(
+                row=3, column=0, padx=10, pady=10
+            )
+            reminder_datetime_entry = ttk.Entry(update_form, width=30)
+            reminder_datetime_entry.grid(row=3, column=1, padx=10, pady=10)
+            reminder_datetime_entry.insert(0, reminder_datetime)
+
+            # function to update the reminder in the database and table
+            def update_reminder():
+                new_task = task_entry.get()
+                new_day_of_week = day_of_week_entry.get()
+                new_day = day_entry.get()
+                new_reminder_datetime = reminder_datetime_entry.get()
+
+                try:
+                    new_reminder_datetime = datetime.strptime(
+                        new_reminder_datetime, "%H:%M:%S"
+                    )
+                except ValueError:
+                    messagebox.showerror(
+                        "Invalid Input",
+                        "Please enter a valid reminder time in the format: HH:MM:00",
+                        parent=update_form,
+                    )
+                    return
+
+                # update the reminder in the database
+                c.execute(
+                    """
+                    UPDATE weekly_reminders
+                    SET task = ?,
+                        day_of_week = ?,
+                        day = ?,
+                        reminder_datetime = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        new_task,
+                        new_day_of_week,
+                        new_day,
+                        new_reminder_datetime,
+                        task_id,
+                    ),
+                )
+                conn.commit()
+
+                # update the reminder in the table
+                weekly_table.item(
+                    selected_item,
+                    values=(
+                        task_id,
+                        new_task,
+                        new_day_of_week,
+                        new_day,
+                        new_reminder_datetime.strftime("%H:%M") + ":00",
+                    ),
+                )
+
+                # close the update form
+                update_form.destroy()
+
+            # create the update button
+            update_button = ttk.Button(
+                update_form, text="Update Reminder", command=update_reminder
+            )
+            update_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
+        else:
+            messagebox.showwarning(
+                "No item selected", "Please select an item to update.", parent=root
+            )
+
     from tkinter import ttk
 
     # Create a frame to hold the table and the delete button
@@ -1139,6 +1323,12 @@ def show_weekly_window():
     # Create a button to delete the selected item from the table
     delete_button = ttk.Button(table_frame, text="Delete", command=delete_selected)
     delete_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+    # Create a button to delete the selected item from the table
+    delete_button = ttk.Button(
+        table_frame, text="Update", command=weekly_update_selected
+    )
+    delete_button.pack(side=tk.LEFT, padx=10, pady=10)
 
     # Set the minimum size of the columns to fit the data
     for column in weekly_table["columns"]:
@@ -1180,7 +1370,7 @@ if __name__ == "__main__":
     root = tk.Tk()
 
     # Set up option menu
-    options = ["Daily", "Weekly", "Monthly", "Yearly"]
+    options = ["Once", "Daily", "Weekly", "Monthly", "Yearly"]
     selected_option = tk.StringVar(root)
     selected_option.set(options[0])
     option_menu = tk.OptionMenu(root, selected_option, *options)
