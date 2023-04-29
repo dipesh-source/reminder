@@ -1356,6 +1356,37 @@ def show_monthly_window():
     monthly_root = tk.Toplevel()
     monthly_root.title("Monthly Task Window")
     set_popup_geometry(monthly_root)
+    from tkinter import ttk
+
+    # Create a treeview widget to display the data
+    tree = ttk.Treeview(monthly_root)
+    tree.pack()
+
+    # Define the columns
+    tree["columns"] = ("id", "task", "start_date", "end_date", "reminder_datetime")
+
+    # Format the columns
+    tree.column("#0", width=0, stretch=tk.NO)
+    tree.column("id", anchor=tk.CENTER, width=50)
+    tree.column("task", anchor=tk.CENTER, width=150)
+    tree.column("start_date", anchor=tk.CENTER, width=100)
+    tree.column("end_date", anchor=tk.CENTER, width=100)
+    tree.column("reminder_datetime", anchor=tk.CENTER, width=150)
+
+    # Define the column headings
+    tree.heading("id", text="ID")
+    tree.heading("task", text="Task")
+    tree.heading("start_date", text="Start Date")
+    tree.heading("end_date", text="End Date")
+    tree.heading("reminder_datetime", text="Reminder Datetime")
+
+    # Fetch the data from the database and insert it into the treeview
+    conn = sqlite3.connect("reminders.db")
+    c = conn.cursor()
+    c = c.execute("SELECT * FROM monthly_reminders")
+    rows = c.fetchall()
+    for row in rows:
+        tree.insert("", tk.END, text="", values=row)
 
 
 def show_yearly_window():
