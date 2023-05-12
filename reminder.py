@@ -1046,6 +1046,19 @@ def show_daily_window():
     # Fetch data from daily_reminders table
     conn = sqlite3.connect("reminders.db")
     c = conn.cursor()
+
+    # Create the daily reminders table
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS daily_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task TEXT NOT NULL,
+        reminder_datetime DATETIME NOT NULL
+        );
+        """
+    )
+
+    # Select data from the daily_reminders table
     c.execute("SELECT id, task, reminder_datetime FROM daily_reminders")
     rows = c.fetchall()
 
@@ -1314,6 +1327,18 @@ def show_weekly_window():
     # Fetch data from the database and add it to the table
     conn = sqlite3.connect("reminders.db")
     c = conn.cursor()
+    # Create the weekly reminders table
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS weekly_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task TEXT NOT NULL,
+        day_of_week INTEGER NOT NULL,
+        day TEXT NULL,
+        reminder_datetime DATETIME NOT NULL
+        );
+        """
+    )
     cursor = c.execute(
         "SELECT id, task, day_of_week, day, reminder_datetime FROM weekly_reminders"
     )
@@ -1383,6 +1408,19 @@ def show_monthly_window():
     # Fetch the data from the database and insert it into the treeview
     conn = sqlite3.connect("reminders.db")
     c = conn.cursor()
+
+    # Create the monthly reminders table
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS monthly_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task TEXT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NULL,
+        reminder_datetime DATETIME NOT NULL
+        );
+        """
+    )
     c = c.execute("SELECT * FROM monthly_reminders")
     rows = c.fetchall()
     for row in rows:
@@ -1394,6 +1432,147 @@ def show_yearly_window():
     yearly_root = tk.Toplevel()
     yearly_root.title("Yearly Task Window")
     set_popup_geometry(yearly_root)
+
+    # Connect to the database and execute a SELECT query to fetch all the data from the yearly_reminders table
+    conn = sqlite3.connect("reminders.db")
+    c = conn.cursor()
+    # Create the yearly reminders table
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS yearly_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task TEXT NOT NULL,
+        month INTEGER NOT NULL,
+        day_of_month INTEGER NOT NULL,
+        reminder_datetime DATETIME NOT NULL
+        );
+        """
+    )
+    c = c.execute("SELECT * FROM yearly_reminders")
+    rows = c.fetchall()
+    c.close()
+    from tkinter import ttk
+
+    # Create a table to display the fetched data
+    table = ttk.Treeview(yearly_root)
+    table["columns"] = ("Task", "Month", "Day of Month", "Reminder Datetime")
+    table.column("#0", width=50)
+    table.column("Task", width=200)
+    table.column("Month", width=100)
+    table.column("Day of Month", width=120)
+    table.column("Reminder Datetime", width=220)
+    table.heading("#0", text="ID")
+    table.heading("Task", text="Task")
+    table.heading("Month", text="Month")
+    table.heading("Day of Month", text="Day of Month")
+    table.heading("Reminder Datetime", text="Reminder Datetime")
+    table.pack()
+
+    # Insert each fetched row as a new item in the table
+    for row in rows:
+        table.insert("", "end", text=row[0], values=(row[1], row[2], row[3], row[4]))
+
+    # Create a button to update the selected row
+    def update_row():
+        """Get the ID of the selected row."""
+        selection = table.selection()
+        if not selection:
+            return
+        row_id = table.item(selection)["text"]
+
+        # Fetch the data for the selected row from the database
+
+        conn = sqlite3.connect("reminders.db")
+        c = conn.cursor()
+        c = c.execute("SELECT * FROM yearly_reminders WHERE id = ?", (row_id,))
+        row_data = c.fetchone()
+        c.close()
+
+        # Create a popup window to edit the data for the selected row
+        popup = tk.Toplevel(yearly_root)
+        popup.title("Update Task")
+        set_popup_geometry(popup)
+
+        # Create labels and entry fields for each column of the table
+        tk.Label(popup, text="Task").grid(row=0, column=0, padx=5, pady=5)
+        task_entry = tk.Entry(popup)
+        task_entry.grid(row=0, column=1, padx=5, pady=5)
+        task_entry.insert(0, row_data[1])
+
+        tk.Label(popup, text="Month").grid(row=1, column=0, padx=5, pady=5)
+        month_entry = tk.Entry(popup)
+        month_entry.grid(row=1, column=1, padx=5, pady=5)
+        month_entry.insert(0, row_data[2])
+
+        tk.Label(popup, text="Day of Month").grid(row=2, column=0, padx=5, pady=5)
+        day_entry = tk.Entry(popup)
+        day_entry.grid(row=2, column=1, padx=5, pady=5)
+        day_entry.insert(0, row_data[3])
+
+        tk.Label(popup, text="Reminder Datetime").grid(row=3, column=0, padx=5, pady=5)
+        datetime_entry = tk.Entry(popup)
+        datetime_entry.grid(row=3, column=1, padx=5, pady=5)
+        datetime_entry.insert(0, row_data[4])
+
+        # Create a function to update the data for the selected row
+        def save_changes():
+            """Get the new values from the entry fields."""
+            new_task = task_entry.get()
+            new_month = int(month_entry.get())
+            new_day = int(day_entry.get())
+            new_datetime = datetime_entry.get()
+
+            # Update the row in the database
+            conn = sqlite3.connect("reminders.db")
+            cursor = conn.cursor()
+            # Check if the user entered a valid time
+            try:
+                # datetime.strptime(new_datetime, "%H:%M:%S")
+                datetime.strptime(new_datetime + ":00", "%H:%M:%S")
+
+            except ValueError:
+                messagebox.showwarning("Error", "Please enter a valid time (HH:MM).")
+                return
+            cursor.execute(
+                "UPDATE yearly_reminders SET task=?, month=?, day_of_month=?, reminder_datetime=? WHERE id=?",
+                (new_task, new_month, new_day, new_datetime, row_id),
+            )
+            conn.commit()
+            conn.close()
+
+            # Update the table with the new values
+            table.item(
+                selection,
+                text=row_id,
+                values=(new_task, new_month, new_day, new_datetime),
+            )
+
+            # Close the popup window
+            popup.destroy()
+
+        # Create a button to save the changes
+        tk.Button(popup, text="Save Changes", command=save_changes).grid(
+            row=4, column=0, columnspan=2, padx=5, pady=5
+        )
+
+    # Update button
+    tk.Button(yearly_root, text="Update", command=update_row).pack(padx=10, pady=10)
+
+    def delete_row():
+        """Delete selected row by user."""
+        selected = table.focus()
+        if selected:
+            id = table.item(selected)["text"]
+            conn = sqlite3.connect("reminders.db")
+            c = conn.cursor()
+            c.execute("DELETE FROM yearly_reminders WHERE id=?", (id,))
+            conn.commit()
+            c.close()
+            table.delete(selected)
+
+    # Add a "Delete" button to delete the selected row
+    delete_button = ttk.Button(yearly_root, text="Delete", command=delete_row)
+    delete_button.pack(pady=10)
 
 
 if __name__ == "__main__":
