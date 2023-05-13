@@ -723,6 +723,7 @@ class YearlySelector:
         try:
             day = int(self.end_day_var.get())
             month = datetime.strptime(self.end_month_var.get(), "%B").month
+            # TODO: need to remove after testing
             year = datetime.now().year
             datetime(year=year, month=month, day=day).date()
 
@@ -1527,15 +1528,14 @@ def show_yearly_window():
             cursor = conn.cursor()
             # Check if the user entered a valid time
             try:
-                # datetime.strptime(new_datetime, "%H:%M:%S")
-                datetime.strptime(new_datetime + ":00", "%H:%M:%S")
-
+                # TODO: need to fix not accepting 00 second when user update
+                year_reminder_datetime = datetime.strptime(new_datetime, "%H:%M:%S")
             except ValueError:
                 messagebox.showwarning("Error", "Please enter a valid time (HH:MM).")
                 return
             cursor.execute(
                 "UPDATE yearly_reminders SET task=?, month=?, day_of_month=?, reminder_datetime=? WHERE id=?",
-                (new_task, new_month, new_day, new_datetime, row_id),
+                (new_task, new_month, new_day, year_reminder_datetime, row_id),
             )
             conn.commit()
             conn.close()
@@ -1544,7 +1544,12 @@ def show_yearly_window():
             table.item(
                 selection,
                 text=row_id,
-                values=(new_task, new_month, new_day, new_datetime),
+                values=(
+                    new_task,
+                    new_month,
+                    new_day,
+                    year_reminder_datetime.strftime("%H:%M") + ":00",
+                ),
             )
 
             # Close the popup window
