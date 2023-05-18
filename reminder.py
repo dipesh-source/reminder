@@ -6,7 +6,7 @@ import sqlite3
 import threading
 import tkinter as tk
 
-from datetime import datetime, time
+from datetime import datetime, time, date
 from tkinter import messagebox, filedialog
 
 
@@ -393,7 +393,7 @@ class MonthSelector:
         self.ampm_var.set("AM")
 
         self.hour_options = [str(i).zfill(2) for i in range(1, 13)]
-        self.minute_options = [str(i).zfill(2) for i in range(0, 60, 5)]
+        self.minute_options = [str(i).zfill(2) for i in range(0, 60)]
         self.ampm_options = ["AM", "PM"]
 
         self.hour_dropdown = tk.OptionMenu(master, self.hour_var, *self.hour_options)
@@ -943,24 +943,50 @@ def check_monthly_reminders():
         current_time = datetime.now().strftime("%H:%M") + ":00"
         try:
             conn = sqlite3.connect("reminders.db")
-            # conn = connect_to_db()
             c = conn.cursor()
-            c.execute(
-                "SELECT * FROM daily_reminders WHERE reminder_datetime <= ?",
-                (current_time,),
-            )
+            c.execute("SELECT * FROM monthly_reminders")
             due_reminders = c.fetchall()
             for reminder in due_reminders:
                 reminder_task = reminder[1]
-                reminder_time = reminder[2]
-                if reminder_time == current_time:
-                    message = "Reminder: {}\n\nTime: {}".format(
-                        reminder_task, reminder_time
-                    )
-                    root = tk.Toplevel()
-                    root.withdraw()  # hide the main window
-                    messagebox.showinfo("Reminder", message)
-                    root.destroy()  # destroy the temporary window
+                reminder_date_one = (
+                    datetime.strptime(reminder[2], "%Y-%m-%d").date()
+                    if reminder[2]
+                    else None
+                )
+                reminder_date_two = (
+                    datetime.strptime(reminder[3], "%Y-%m-%d").date()
+                    if reminder[3]
+                    else None
+                )
+                reminder_time = reminder[4]
+
+                if reminder_date_one is not None:
+                    if reminder_date_two is None:
+                        if (
+                            reminder_date_one == date.today()
+                            and reminder_time == current_time  # noqa: W503
+                        ):
+                            message = "Reminder: {}\n\nTime: {}".format(
+                                reminder_task, reminder_time
+                            )
+                            root = tk.Tk()
+                            root.withdraw()  # hide the main window
+                            messagebox.showinfo("Reminder", message)
+                            root.destroy()  # destroy the temporary window
+                    else:
+                        today = date.today()
+                        if (
+                            reminder_date_one <= today <= reminder_date_two
+                            and reminder_time == current_time  # noqa: W503
+                        ):
+                            message = "Reminder: {}\n\nTime: {}".format(
+                                reminder_task, reminder_time
+                            )
+                            root = tk.Tk()
+                            root.withdraw()  # hide the main window
+                            messagebox.showinfo("Reminder", message)
+                            root.destroy()  # destroy the temporary window
+
             c.close()
             conn.close()
         except sqlite3.OperationalError as e:
@@ -1632,9 +1658,11 @@ if __name__ == "__main__":
 
     daily_thread = threading.Thread(target=check_daily_reminders)
     weekly_thread = threading.Thread(target=check_weekly_reminders)
+    month_thread = threading.Thread(target=check_monthly_reminders)
     yearly_thread = threading.Thread(target=check_yearly_reminder)
     daily_thread.start()
     weekly_thread.start()
+    month_thread.start()
     yearly_thread.start()
 
     root.mainloop()
